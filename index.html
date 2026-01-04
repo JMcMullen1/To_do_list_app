@@ -1,0 +1,1422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weekly To-Do + Calendar Sync</title>
+    <style>
+        /* ============================================
+           CSS VARIABLES & RESET
+           ============================================ */
+        :root {
+            --primary-color: #4A90E2;
+            --primary-dark: #357ABD;
+            --success-color: #5CB85C;
+            --danger-color: #D9534F;
+            --text-primary: #2C3E50;
+            --text-secondary: #7F8C8D;
+            --border-color: #E0E0E0;
+            --bg-primary: #FFFFFF;
+            --bg-secondary: #F8F9FA;
+            --bg-hover: #F0F4F8;
+            --shadow-sm: 0 2px 4px rgba(0,0,0,0.08);
+            --shadow-md: 0 4px 12px rgba(0,0,0,0.1);
+            --radius: 8px;
+            --spacing: 16px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            color: var(--text-primary);
+            background: var(--bg-secondary);
+            line-height: 1.6;
+        }
+
+        /* ============================================
+           LAYOUT
+           ============================================ */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: var(--spacing);
+        }
+
+        header {
+            background: var(--bg-primary);
+            box-shadow: var(--shadow-sm);
+            padding: calc(var(--spacing) * 1.5) 0;
+            margin-bottom: calc(var(--spacing) * 2);
+        }
+
+        header h1 {
+            font-size: 1.75rem;
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+
+        header p {
+            color: var(--text-secondary);
+            margin-top: 0.25rem;
+            font-size: 0.95rem;
+        }
+
+        .app-layout {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            gap: calc(var(--spacing) * 1.5);
+            align-items: start;
+        }
+
+        /* ============================================
+           SIDEBAR - DAY SELECTOR
+           ============================================ */
+        .sidebar {
+            background: var(--bg-primary);
+            border-radius: var(--radius);
+            padding: var(--spacing);
+            box-shadow: var(--shadow-sm);
+            position: sticky;
+            top: var(--spacing);
+        }
+
+        .sidebar h2 {
+            font-size: 1.1rem;
+            margin-bottom: var(--spacing);
+            color: var(--text-primary);
+        }
+
+        .week-selector {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--spacing);
+            gap: 8px;
+        }
+
+        .week-nav-btn {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            padding: 6px 12px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .week-nav-btn:hover {
+            background: var(--bg-hover);
+        }
+
+        .week-nav-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .day-button {
+            display: block;
+            width: 100%;
+            background: var(--bg-secondary);
+            border: 2px solid transparent;
+            border-radius: var(--radius);
+            padding: 12px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.2s;
+        }
+
+        .day-button:hover {
+            background: var(--bg-hover);
+        }
+
+        .day-button.active {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-dark);
+        }
+
+        .day-button .day-name {
+            font-weight: 600;
+            font-size: 1rem;
+        }
+
+        .day-button .day-date {
+            font-size: 0.85rem;
+            opacity: 0.8;
+            margin-top: 2px;
+        }
+
+        /* ============================================
+           MAIN CONTENT - TASK LIST
+           ============================================ */
+        .main-content {
+            background: var(--bg-primary);
+            border-radius: var(--radius);
+            padding: calc(var(--spacing) * 1.5);
+            box-shadow: var(--shadow-sm);
+            min-height: 500px;
+        }
+
+        .content-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: calc(var(--spacing) * 1.5);
+            flex-wrap: wrap;
+            gap: var(--spacing);
+        }
+
+        .content-header h2 {
+            font-size: 1.5rem;
+            color: var(--text-primary);
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: var(--radius);
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+        }
+
+        .btn-secondary {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            background: var(--bg-hover);
+        }
+
+        .btn-danger {
+            background: var(--danger-color);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c9302c;
+        }
+
+        .btn-sm {
+            padding: 4px 8px;
+            font-size: 0.8rem;
+        }
+
+        /* Progress Bar */
+        .progress-section {
+            margin-bottom: calc(var(--spacing) * 1.5);
+            padding: var(--spacing);
+            background: var(--bg-secondary);
+            border-radius: var(--radius);
+        }
+
+        .progress-text {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .progress-bar-bg {
+            height: 8px;
+            background: var(--border-color);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary-color), var(--success-color));
+            transition: width 0.3s ease;
+            border-radius: 4px;
+        }
+
+        /* Search */
+        .search-box {
+            margin-bottom: var(--spacing);
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            font-size: 0.95rem;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+
+        /* Task List */
+        .task-list {
+            list-style: none;
+        }
+
+        .task-item {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            margin-bottom: 8px;
+            transition: all 0.2s;
+            background: white;
+        }
+
+        .task-item:hover {
+            box-shadow: var(--shadow-sm);
+        }
+
+        .task-item.completed {
+            opacity: 0.6;
+        }
+
+        .task-checkbox {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            margin-right: 12px;
+            flex-shrink: 0;
+        }
+
+        .task-content {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .task-text {
+            flex: 1;
+        }
+
+        .task-item.completed .task-text {
+            text-decoration: line-through;
+        }
+
+        .task-time {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            background: var(--bg-secondary);
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+
+        .task-badge {
+            font-size: 0.75rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .task-actions {
+            display: flex;
+            gap: 4px;
+        }
+
+        .task-delete-btn {
+            background: transparent;
+            border: none;
+            color: var(--danger-color);
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .task-delete-btn:hover {
+            background: rgba(217, 83, 79, 0.1);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: calc(var(--spacing) * 3);
+            color: var(--text-secondary);
+        }
+
+        .empty-state-icon {
+            font-size: 3rem;
+            margin-bottom: var(--spacing);
+        }
+
+        /* ============================================
+           ADD TASK FORM
+           ============================================ */
+        .add-task-section {
+            margin-top: calc(var(--spacing) * 2);
+            padding-top: calc(var(--spacing) * 2);
+            border-top: 2px solid var(--border-color);
+        }
+
+        .add-task-section h3 {
+            font-size: 1.1rem;
+            margin-bottom: var(--spacing);
+        }
+
+        .add-task-form {
+            display: grid;
+            gap: 12px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .form-group label {
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        .form-group input,
+        .form-group select {
+            padding: 10px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            font-size: 0.95rem;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        /* ============================================
+           MODAL
+           ============================================ */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--bg-primary);
+            border-radius: var(--radius);
+            padding: calc(var(--spacing) * 2);
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: var(--shadow-md);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--spacing);
+        }
+
+        .modal-header h3 {
+            font-size: 1.3rem;
+        }
+
+        .modal-close {
+            background: transparent;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--text-secondary);
+            padding: 0;
+            width: 32px;
+            height: 32px;
+        }
+
+        .modal-close:hover {
+            color: var(--text-primary);
+        }
+
+        .modal-body {
+            margin-bottom: var(--spacing);
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+
+        /* ============================================
+           RESPONSIVE
+           ============================================ */
+        @media (max-width: 768px) {
+            .app-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                position: static;
+            }
+
+            .content-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* ============================================
+           UTILITY CLASSES
+           ============================================ */
+        .hidden {
+            display: none !important;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .mt-2 {
+            margin-top: calc(var(--spacing) * 2);
+        }
+    </style>
+</head>
+<body>
+    <!-- HEADER -->
+    <header>
+        <div class="container">
+            <h1>Weekly To-Do + Calendar Sync</h1>
+            <p>Manage your weekly tasks and sync with your calendar</p>
+        </div>
+    </header>
+
+    <!-- MAIN APP -->
+    <div class="container">
+        <div class="app-layout">
+            <!-- SIDEBAR: Day Selector -->
+            <aside class="sidebar">
+                <h2>Select Day</h2>
+                <div class="week-selector">
+                    <button class="week-nav-btn" id="prevWeek">← Prev</button>
+                    <button class="week-nav-btn" id="nextWeek">Next →</button>
+                </div>
+                <div id="dayButtons"></div>
+            </aside>
+
+            <!-- MAIN CONTENT: Task List -->
+            <main class="main-content">
+                <div class="content-header">
+                    <h2 id="selectedDayTitle">Loading...</h2>
+                    <div class="action-buttons">
+                        <button class="btn btn-primary" id="exportDay">Export Day (.ics)</button>
+                        <button class="btn btn-secondary" id="exportWeek">Export Week</button>
+                        <button class="btn btn-secondary" id="resetDay">Reset Today</button>
+                        <button class="btn btn-danger btn-sm" id="resetWeek">Reset Week</button>
+                    </div>
+                </div>
+
+                <!-- Progress -->
+                <div class="progress-section">
+                    <div class="progress-text">
+                        <span id="progressText">0 / 0 completed</span>
+                        <span id="progressPercent">0%</span>
+                    </div>
+                    <div class="progress-bar-bg">
+                        <div class="progress-bar-fill" id="progressBar" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <!-- Search -->
+                <div class="search-box">
+                    <input type="text" id="searchInput" placeholder="Search tasks...">
+                </div>
+
+                <!-- Task List -->
+                <ul class="task-list" id="taskList"></ul>
+
+                <!-- Add Task -->
+                <div class="add-task-section">
+                    <h3>Add New Task</h3>
+                    <form class="add-task-form" id="addTaskForm">
+                        <div class="form-group">
+                            <label for="newTaskText">Task Description</label>
+                            <input type="text" id="newTaskText" placeholder="Enter task..." required>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="newTaskTime">Time (optional)</label>
+                                <input type="time" id="newTaskTime">
+                            </div>
+                            <div class="form-group">
+                                <label for="newTaskType">Add to</label>
+                                <select id="newTaskType">
+                                    <option value="today">Today only</option>
+                                    <option value="template">Every week (template)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Add Task</button>
+                    </form>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- MODAL: Calendar Subscribe Info -->
+    <div class="modal" id="subscribeModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Calendar Subscription</h3>
+                <button class="modal-close" id="closeModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>This is a static web app, so live calendar subscription requires hosting the .ics file on a server.</p>
+                <p><strong>Quick Setup:</strong></p>
+                <ol>
+                    <li>Download the .ics file using the export buttons</li>
+                    <li>Import it into your calendar app (Google Calendar, Apple Calendar, Outlook, etc.)</li>
+                    <li>For recurring sync, you could host the .ics on a public URL and subscribe to it</li>
+                </ol>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="closeModalBtn">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // STORAGE MODEL
+        // ============================================
+        // weeklyTemplate: { monday: [...tasks], tuesday: [...tasks], ... }
+        // dailyOverrides: { "2026-01-06": [...tasks] }
+        // completion: { "2026-01-06": { "task-id-1": true, "task-id-2": false } }
+
+        const STORAGE_KEYS = {
+            WEEKLY_TEMPLATE: 'weeklyTemplate',
+            DAILY_OVERRIDES: 'dailyOverrides',
+            COMPLETION: 'completion'
+        };
+
+        // Default weekly template (from user requirements)
+        const DEFAULT_TEMPLATE = {
+            monday: [
+                { text: 'Take Nellie for a walk', time: '' },
+                { text: 'Make breakfast for myself and everyone', time: '' },
+                { text: 'Make lunch in advance if possible', time: '' },
+                { text: 'Get nursery stuff ready for Sienna', time: '' },
+                { text: 'Study', time: '' },
+                { text: 'Greasing the groove workouts', time: '' },
+                { text: 'Tidy the bedrooms before Sienna\'s first nap', time: '' },
+                { text: 'Hoover whilst Sienna is at Nursery', time: '' },
+                { text: 'Home grappling training', time: '' },
+                { text: 'Make lunch', time: '' },
+                { text: 'Lower body training', time: '' },
+                { text: 'Make dinner', time: '' },
+                { text: 'Tidy downstairs before bed', time: '' },
+                { text: 'Do bedtime', time: '' }
+            ],
+            tuesday: [
+                { text: 'Take Nellie for a walk', time: '' },
+                { text: 'Make breakfast for myself and everyone', time: '' },
+                { text: 'Make lunch in advance if possible', time: '' },
+                { text: 'Study', time: '' },
+                { text: 'Greasing the groove workouts', time: '' },
+                { text: 'Tidy the bedrooms before Sienna\'s first nap', time: '' },
+                { text: 'Clean the bathrooms', time: '' },
+                { text: 'Make lunch', time: '' },
+                { text: 'Half Hyrox sim', time: '' },
+                { text: 'Make dinner', time: '' },
+                { text: 'Tidy downstairs before bed', time: '' },
+                { text: 'Do bedtime', time: '' }
+            ],
+            wednesday: [
+                { text: 'Take Nellie for a walk', time: '' },
+                { text: 'Make breakfast for myself and everyone', time: '' },
+                { text: 'Make lunch in advance if possible', time: '' },
+                { text: 'Study', time: '' },
+                { text: 'Greasing the groove workouts', time: '' },
+                { text: 'Tidy the bedrooms before Sienna\'s first nap', time: '' },
+                { text: 'Do load of washing', time: '' },
+                { text: 'Make lunch', time: '' },
+                { text: 'Grappling home gym training', time: '' },
+                { text: 'Make dinner', time: '' },
+                { text: 'Tidy downstairs before bed', time: '' },
+                { text: 'Tidy away dry washing', time: '' },
+                { text: 'Do bedtime', time: '' }
+            ],
+            thursday: [
+                { text: 'Take Nellie for a walk', time: '' },
+                { text: 'Make breakfast for myself and everyone', time: '' },
+                { text: 'Make lunch in advance if possible', time: '' },
+                { text: 'Study', time: '' },
+                { text: 'Greasing the groove workouts', time: '' },
+                { text: 'Tidy the bedrooms before Sienna\'s first nap', time: '' },
+                { text: 'Make lunch', time: '' },
+                { text: 'Go to basketball', time: '' },
+                { text: 'Go shopping', time: '' },
+                { text: 'Tidy downstairs before bed', time: '' },
+                { text: 'Do bedtime', time: '' }
+            ],
+            friday: [
+                { text: 'Take Nellie for a walk', time: '' },
+                { text: 'Make breakfast for myself and everyone', time: '' },
+                { text: 'Make lunch in advance if possible', time: '' },
+                { text: 'Get nursery stuff ready for Sienna', time: '' },
+                { text: 'Study', time: '' },
+                { text: 'Greasing the groove workouts', time: '' },
+                { text: 'Tidy the bedrooms before Sienna\'s first nap', time: '' },
+                { text: 'Hoover whilst Sienna is at Nursery', time: '' },
+                { text: 'Make lunch', time: '' },
+                { text: 'Half Hyrox sim', time: '' },
+                { text: 'Make dinner', time: '' },
+                { text: 'Tidy downstairs before bed', time: '' },
+                { text: 'Do bedtime', time: '' }
+            ],
+            saturday: [
+                { text: 'Take Nellie for a walk', time: '' },
+                { text: 'Make breakfast for myself and everyone', time: '' },
+                { text: 'Make lunch in advance if possible', time: '' },
+                { text: 'Study', time: '' },
+                { text: 'Greasing the groove workouts', time: '' },
+                { text: 'Tidy the bedrooms before Sienna\'s first nap', time: '' },
+                { text: 'Put a load of washing on', time: '' },
+                { text: 'Make lunch', time: '' },
+                { text: 'Home gym grappling training', time: '' },
+                { text: 'Make dinner', time: '' },
+                { text: 'Tidy downstairs before bed', time: '' },
+                { text: 'Do bedtime', time: '' }
+            ],
+            sunday: []
+        };
+
+        // ============================================
+        // STATE
+        // ============================================
+        let currentWeekStart = null; // Monday of current week
+        let selectedDate = null; // Currently selected date
+        let searchQuery = '';
+
+        // ============================================
+        // UTILITY FUNCTIONS
+        // ============================================
+
+        /**
+         * Generate a unique ID for tasks
+         */
+        function generateId() {
+            return 'task-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+        }
+
+        /**
+         * Format date as YYYY-MM-DD
+         */
+        function formatDate(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        /**
+         * Get Monday of the week for a given date
+         */
+        function getMonday(date) {
+            const d = new Date(date);
+            const day = d.getDay();
+            const diff = d.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is sunday
+            return new Date(d.setDate(diff));
+        }
+
+        /**
+         * Get weekday name from date
+         */
+        function getWeekdayName(date) {
+            const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+            return days[date.getDay()];
+        }
+
+        /**
+         * Format date for display
+         */
+        function formatDisplayDate(date) {
+            const options = { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' };
+            return date.toLocaleDateString('en-US', options);
+        }
+
+        /**
+         * Format date for short display
+         */
+        function formatShortDate(date) {
+            const options = { month: 'short', day: 'numeric' };
+            return date.toLocaleDateString('en-US', options);
+        }
+
+        // ============================================
+        // STORAGE FUNCTIONS
+        // ============================================
+
+        /**
+         * Get weekly template from storage or use default
+         */
+        function getWeeklyTemplate() {
+            const stored = localStorage.getItem(STORAGE_KEYS.WEEKLY_TEMPLATE);
+            if (stored) {
+                try {
+                    return JSON.parse(stored);
+                } catch (e) {
+                    console.error('Error parsing weekly template:', e);
+                }
+            }
+            return JSON.parse(JSON.stringify(DEFAULT_TEMPLATE)); // deep copy
+        }
+
+        /**
+         * Save weekly template to storage
+         */
+        function saveWeeklyTemplate(template) {
+            localStorage.setItem(STORAGE_KEYS.WEEKLY_TEMPLATE, JSON.stringify(template));
+        }
+
+        /**
+         * Get daily overrides from storage
+         */
+        function getDailyOverrides() {
+            const stored = localStorage.getItem(STORAGE_KEYS.DAILY_OVERRIDES);
+            if (stored) {
+                try {
+                    return JSON.parse(stored);
+                } catch (e) {
+                    console.error('Error parsing daily overrides:', e);
+                }
+            }
+            return {};
+        }
+
+        /**
+         * Save daily overrides to storage
+         */
+        function saveDailyOverrides(overrides) {
+            localStorage.setItem(STORAGE_KEYS.DAILY_OVERRIDES, JSON.stringify(overrides));
+        }
+
+        /**
+         * Get completion data from storage
+         */
+        function getCompletion() {
+            const stored = localStorage.getItem(STORAGE_KEYS.COMPLETION);
+            if (stored) {
+                try {
+                    return JSON.parse(stored);
+                } catch (e) {
+                    console.error('Error parsing completion data:', e);
+                }
+            }
+            return {};
+        }
+
+        /**
+         * Save completion data to storage
+         */
+        function saveCompletion(completion) {
+            localStorage.setItem(STORAGE_KEYS.COMPLETION, JSON.stringify(completion));
+        }
+
+        // ============================================
+        // TASK MANAGEMENT
+        // ============================================
+
+        /**
+         * Get tasks for a specific date
+         * Combines weekly template tasks + daily overrides
+         */
+        function getTasksForDate(date) {
+            const dateStr = formatDate(date);
+            const weekday = getWeekdayName(date);
+            const template = getWeeklyTemplate();
+            const overrides = getDailyOverrides();
+
+            // Get template tasks for this weekday
+            const templateTasks = (template[weekday] || []).map(task => ({
+                id: task.id || generateId(),
+                text: task.text,
+                time: task.time || '',
+                source: 'template',
+                weekday: weekday
+            }));
+
+            // Get override tasks for this specific date
+            const overrideTasks = (overrides[dateStr] || []).map(task => ({
+                id: task.id || generateId(),
+                text: task.text,
+                time: task.time || '',
+                source: 'override',
+                date: dateStr
+            }));
+
+            return [...templateTasks, ...overrideTasks];
+        }
+
+        /**
+         * Add a task
+         */
+        function addTask(text, time, type, targetDate) {
+            const task = {
+                id: generateId(),
+                text: text.trim(),
+                time: time || ''
+            };
+
+            if (type === 'template') {
+                // Add to weekly template
+                const weekday = getWeekdayName(targetDate);
+                const template = getWeeklyTemplate();
+                if (!template[weekday]) {
+                    template[weekday] = [];
+                }
+                template[weekday].push(task);
+                saveWeeklyTemplate(template);
+            } else {
+                // Add to daily overrides
+                const dateStr = formatDate(targetDate);
+                const overrides = getDailyOverrides();
+                if (!overrides[dateStr]) {
+                    overrides[dateStr] = [];
+                }
+                overrides[dateStr].push(task);
+                saveDailyOverrides(overrides);
+            }
+        }
+
+        /**
+         * Delete a task
+         */
+        function deleteTask(taskId, source, weekday, dateStr) {
+            if (source === 'template') {
+                const template = getWeeklyTemplate();
+                if (template[weekday]) {
+                    template[weekday] = template[weekday].filter(t => t.id !== taskId);
+                    saveWeeklyTemplate(template);
+                }
+            } else {
+                const overrides = getDailyOverrides();
+                if (overrides[dateStr]) {
+                    overrides[dateStr] = overrides[dateStr].filter(t => t.id !== taskId);
+                    saveDailyOverrides(overrides);
+                }
+            }
+
+            // Also remove from completion
+            const completion = getCompletion();
+            if (completion[dateStr]) {
+                delete completion[dateStr][taskId];
+                saveCompletion(completion);
+            }
+        }
+
+        /**
+         * Toggle task completion
+         */
+        function toggleTaskCompletion(taskId, date) {
+            const dateStr = formatDate(date);
+            const completion = getCompletion();
+
+            if (!completion[dateStr]) {
+                completion[dateStr] = {};
+            }
+
+            completion[dateStr][taskId] = !completion[dateStr][taskId];
+            saveCompletion(completion);
+        }
+
+        /**
+         * Check if task is completed
+         */
+        function isTaskCompleted(taskId, date) {
+            const dateStr = formatDate(date);
+            const completion = getCompletion();
+            return completion[dateStr]?.[taskId] || false;
+        }
+
+        /**
+         * Reset completion for a date
+         */
+        function resetDay(date) {
+            const dateStr = formatDate(date);
+            const completion = getCompletion();
+            delete completion[dateStr];
+            saveCompletion(completion);
+        }
+
+        /**
+         * Reset completion for entire week
+         */
+        function resetWeek(weekStart) {
+            const completion = getCompletion();
+            for (let i = 0; i < 7; i++) {
+                const date = new Date(weekStart);
+                date.setDate(date.getDate() + i);
+                const dateStr = formatDate(date);
+                delete completion[dateStr];
+            }
+            saveCompletion(completion);
+        }
+
+        // ============================================
+        // ICS GENERATION
+        // ============================================
+
+        /**
+         * Generate ICS file content
+         * Format: https://datatracker.ietf.org/doc/html/rfc5545
+         */
+        function generateICS(tasks, date, title = 'My Tasks') {
+            const dateStr = formatDate(date).replace(/-/g, '');
+            const now = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+
+            let ics = [
+                'BEGIN:VCALENDAR',
+                'VERSION:2.0',
+                'PRODID:-//Weekly Todo App//EN',
+                'CALSCALE:GREGORIAN',
+                'METHOD:PUBLISH',
+                'X-WR-CALNAME:' + title,
+                'X-WR-TIMEZONE:UTC'
+            ];
+
+            tasks.forEach(task => {
+                const uid = task.id + '@weekly-todo-app';
+                const summary = task.text.replace(/,/g, '\\,').replace(/;/g, '\\;');
+
+                let dtstart, dtend;
+                if (task.time) {
+                    // Timed event
+                    const timeStr = task.time.replace(':', '') + '00';
+                    dtstart = 'DTSTART:' + dateStr + 'T' + timeStr;
+                    // Default 1 hour duration
+                    const endDate = new Date(date);
+                    const [hours, minutes] = task.time.split(':');
+                    endDate.setHours(parseInt(hours) + 1, parseInt(minutes));
+                    const endTimeStr = formatDate(endDate).replace(/-/g, '') + 'T' +
+                                      String(endDate.getHours()).padStart(2, '0') +
+                                      String(endDate.getMinutes()).padStart(2, '0') + '00';
+                    dtend = 'DTEND:' + endTimeStr;
+                } else {
+                    // All-day event
+                    dtstart = 'DTSTART;VALUE=DATE:' + dateStr;
+                    const nextDay = new Date(date);
+                    nextDay.setDate(nextDay.getDate() + 1);
+                    const nextDayStr = formatDate(nextDay).replace(/-/g, '');
+                    dtend = 'DTEND;VALUE=DATE:' + nextDayStr;
+                }
+
+                ics.push(
+                    'BEGIN:VEVENT',
+                    'UID:' + uid,
+                    'DTSTAMP:' + now,
+                    dtstart,
+                    dtend,
+                    'SUMMARY:' + summary,
+                    'STATUS:' + (isTaskCompleted(task.id, date) ? 'COMPLETED' : 'CONFIRMED'),
+                    'END:VEVENT'
+                );
+            });
+
+            ics.push('END:VCALENDAR');
+            return ics.join('\r\n');
+        }
+
+        /**
+         * Download ICS file
+         */
+        function downloadICS(content, filename) {
+            const blob = new Blob([content], { type: 'text/calendar;charset=utf-8' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(link.href);
+        }
+
+        // ============================================
+        // UI RENDERING
+        // ============================================
+
+        /**
+         * Render day selector buttons
+         */
+        function renderDayButtons() {
+            const container = document.getElementById('dayButtons');
+            container.innerHTML = '';
+
+            const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+            const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+            for (let i = 0; i < 7; i++) {
+                const date = new Date(currentWeekStart);
+                date.setDate(date.getDate() + i);
+                const dateStr = formatDate(date);
+                const isSelected = dateStr === formatDate(selectedDate);
+
+                const button = document.createElement('button');
+                button.className = 'day-button' + (isSelected ? ' active' : '');
+                button.innerHTML = `
+                    <div class="day-name">${dayNames[i]}</div>
+                    <div class="day-date">${formatShortDate(date)}</div>
+                `;
+                button.addEventListener('click', () => {
+                    selectedDate = date;
+                    renderApp();
+                });
+
+                container.appendChild(button);
+            }
+        }
+
+        /**
+         * Render task list
+         */
+        function renderTaskList() {
+            const container = document.getElementById('taskList');
+            const tasks = getTasksForDate(selectedDate);
+
+            // Filter by search query
+            const filteredTasks = tasks.filter(task =>
+                task.text.toLowerCase().includes(searchQuery.toLowerCase())
+            );
+
+            if (filteredTasks.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📋</div>
+                        <p>${searchQuery ? 'No tasks match your search' : 'No tasks for this day'}</p>
+                        ${!searchQuery ? '<p>Add a task below to get started!</p>' : ''}
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = '';
+            filteredTasks.forEach(task => {
+                const isCompleted = isTaskCompleted(task.id, selectedDate);
+                const li = document.createElement('li');
+                li.className = 'task-item' + (isCompleted ? ' completed' : '');
+
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.className = 'task-checkbox';
+                checkbox.checked = isCompleted;
+                checkbox.addEventListener('change', () => {
+                    toggleTaskCompletion(task.id, selectedDate);
+                    renderApp();
+                });
+
+                const content = document.createElement('div');
+                content.className = 'task-content';
+
+                const textSpan = document.createElement('span');
+                textSpan.className = 'task-text';
+                textSpan.textContent = task.text;
+
+                content.appendChild(textSpan);
+
+                if (task.time) {
+                    const timeSpan = document.createElement('span');
+                    timeSpan.className = 'task-time';
+                    timeSpan.textContent = task.time;
+                    content.appendChild(timeSpan);
+                }
+
+                if (task.source === 'template') {
+                    const badge = document.createElement('span');
+                    badge.className = 'task-badge';
+                    badge.textContent = 'Template';
+                    content.appendChild(badge);
+                }
+
+                const actions = document.createElement('div');
+                actions.className = 'task-actions';
+
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'task-delete-btn';
+                deleteBtn.textContent = '✕';
+                deleteBtn.title = 'Delete task';
+                deleteBtn.addEventListener('click', () => {
+                    if (confirm(`Delete task: "${task.text}"?`)) {
+                        deleteTask(task.id, task.source, task.weekday, formatDate(selectedDate));
+                        renderApp();
+                    }
+                });
+
+                actions.appendChild(deleteBtn);
+
+                li.appendChild(checkbox);
+                li.appendChild(content);
+                li.appendChild(actions);
+                container.appendChild(li);
+            });
+        }
+
+        /**
+         * Update progress indicator
+         */
+        function updateProgress() {
+            const tasks = getTasksForDate(selectedDate);
+            const completedCount = tasks.filter(task => isTaskCompleted(task.id, selectedDate)).length;
+            const totalCount = tasks.length;
+            const percentage = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+
+            document.getElementById('progressText').textContent = `${completedCount} / ${totalCount} completed`;
+            document.getElementById('progressPercent').textContent = `${percentage}%`;
+            document.getElementById('progressBar').style.width = `${percentage}%`;
+        }
+
+        /**
+         * Update selected day title
+         */
+        function updateTitle() {
+            const title = formatDisplayDate(selectedDate);
+            document.getElementById('selectedDayTitle').textContent = title;
+        }
+
+        /**
+         * Render entire app
+         */
+        function renderApp() {
+            renderDayButtons();
+            renderTaskList();
+            updateProgress();
+            updateTitle();
+        }
+
+        // ============================================
+        // EVENT HANDLERS
+        // ============================================
+
+        /**
+         * Initialize event listeners
+         */
+        function initEventListeners() {
+            // Week navigation
+            document.getElementById('prevWeek').addEventListener('click', () => {
+                currentWeekStart.setDate(currentWeekStart.getDate() - 7);
+                selectedDate = new Date(currentWeekStart);
+                renderApp();
+            });
+
+            document.getElementById('nextWeek').addEventListener('click', () => {
+                currentWeekStart.setDate(currentWeekStart.getDate() + 7);
+                selectedDate = new Date(currentWeekStart);
+                renderApp();
+            });
+
+            // Export day
+            document.getElementById('exportDay').addEventListener('click', () => {
+                const tasks = getTasksForDate(selectedDate);
+                const dateStr = formatDate(selectedDate);
+                const ics = generateICS(tasks, selectedDate, `Tasks - ${dateStr}`);
+                downloadICS(ics, `tasks-${dateStr}.ics`);
+            });
+
+            // Export week
+            document.getElementById('exportWeek').addEventListener('click', () => {
+                let allEvents = [];
+                for (let i = 0; i < 7; i++) {
+                    const date = new Date(currentWeekStart);
+                    date.setDate(date.getDate() + i);
+                    const tasks = getTasksForDate(date);
+                    tasks.forEach(task => {
+                        allEvents.push({ ...task, date });
+                    });
+                }
+
+                // Generate combined ICS
+                const weekStart = formatDate(currentWeekStart);
+                const weekEnd = new Date(currentWeekStart);
+                weekEnd.setDate(weekEnd.getDate() + 6);
+
+                let ics = [
+                    'BEGIN:VCALENDAR',
+                    'VERSION:2.0',
+                    'PRODID:-//Weekly Todo App//EN',
+                    'CALSCALE:GREGORIAN',
+                    'METHOD:PUBLISH',
+                    'X-WR-CALNAME:Weekly Tasks',
+                    'X-WR-TIMEZONE:UTC'
+                ];
+
+                allEvents.forEach(item => {
+                    const task = item;
+                    const date = item.date;
+                    const dateStr = formatDate(date).replace(/-/g, '');
+                    const now = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+                    const uid = task.id + '-' + dateStr + '@weekly-todo-app';
+                    const summary = task.text.replace(/,/g, '\\,').replace(/;/g, '\\;');
+
+                    let dtstart, dtend;
+                    if (task.time) {
+                        const timeStr = task.time.replace(':', '') + '00';
+                        dtstart = 'DTSTART:' + dateStr + 'T' + timeStr;
+                        const endDate = new Date(date);
+                        const [hours, minutes] = task.time.split(':');
+                        endDate.setHours(parseInt(hours) + 1, parseInt(minutes));
+                        const endTimeStr = formatDate(endDate).replace(/-/g, '') + 'T' +
+                                          String(endDate.getHours()).padStart(2, '0') +
+                                          String(endDate.getMinutes()).padStart(2, '0') + '00';
+                        dtend = 'DTEND:' + endTimeStr;
+                    } else {
+                        dtstart = 'DTSTART;VALUE=DATE:' + dateStr;
+                        const nextDay = new Date(date);
+                        nextDay.setDate(nextDay.getDate() + 1);
+                        const nextDayStr = formatDate(nextDay).replace(/-/g, '');
+                        dtend = 'DTEND;VALUE=DATE:' + nextDayStr;
+                    }
+
+                    ics.push(
+                        'BEGIN:VEVENT',
+                        'UID:' + uid,
+                        'DTSTAMP:' + now,
+                        dtstart,
+                        dtend,
+                        'SUMMARY:' + summary,
+                        'STATUS:' + (isTaskCompleted(task.id, date) ? 'COMPLETED' : 'CONFIRMED'),
+                        'END:VEVENT'
+                    );
+                });
+
+                ics.push('END:VCALENDAR');
+                downloadICS(ics.join('\r\n'), `tasks-week-${weekStart}.ics`);
+            });
+
+            // Reset day
+            document.getElementById('resetDay').addEventListener('click', () => {
+                if (confirm('Reset all task completions for today?')) {
+                    resetDay(selectedDate);
+                    renderApp();
+                }
+            });
+
+            // Reset week
+            document.getElementById('resetWeek').addEventListener('click', () => {
+                if (confirm('Reset all task completions for this entire week?')) {
+                    resetWeek(currentWeekStart);
+                    renderApp();
+                }
+            });
+
+            // Search
+            document.getElementById('searchInput').addEventListener('input', (e) => {
+                searchQuery = e.target.value;
+                renderTaskList();
+                updateProgress();
+            });
+
+            // Add task form
+            document.getElementById('addTaskForm').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const text = document.getElementById('newTaskText').value;
+                const time = document.getElementById('newTaskTime').value;
+                const type = document.getElementById('newTaskType').value;
+
+                if (text.trim()) {
+                    addTask(text, time, type, selectedDate);
+                    document.getElementById('addTaskForm').reset();
+                    renderApp();
+                }
+            });
+
+            // Modal
+            document.getElementById('closeModal').addEventListener('click', () => {
+                document.getElementById('subscribeModal').classList.remove('active');
+            });
+
+            document.getElementById('closeModalBtn').addEventListener('click', () => {
+                document.getElementById('subscribeModal').classList.remove('active');
+            });
+
+            // Close modal on background click
+            document.getElementById('subscribeModal').addEventListener('click', (e) => {
+                if (e.target.id === 'subscribeModal') {
+                    document.getElementById('subscribeModal').classList.remove('active');
+                }
+            });
+        }
+
+        // ============================================
+        // INITIALIZATION
+        // ============================================
+
+        /**
+         * Initialize the app
+         */
+        function init() {
+            // Set initial dates
+            const today = new Date();
+            currentWeekStart = getMonday(today);
+            selectedDate = new Date(today);
+
+            // Ensure template is initialized
+            if (!localStorage.getItem(STORAGE_KEYS.WEEKLY_TEMPLATE)) {
+                saveWeeklyTemplate(DEFAULT_TEMPLATE);
+            }
+
+            // Initialize event listeners
+            initEventListeners();
+
+            // Initial render
+            renderApp();
+        }
+
+        // Start the app when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+    </script>
+</body>
+</html>
